@@ -1,0 +1,66 @@
+#  ini cuek aja gapapa haerusnya
+version: '3.8' 
+
+services:
+  # Service untuk aplikasi Laravel (PHP-FPM)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: laravel-api-gateway-app
+    container_name: laravel_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html # Mount kode proyek Anda
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini # Konfigurasi PHP tambahan (opsional)
+    networks:
+      - laravel-network
+
+  # Service untuk Nginx (Web Server)
+  nginx:
+    image: nginx:stable-alpine
+    container_name: laravel_nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80" # Map port 8000 di host ke port 80 di container
+    volumes:
+      - ./:/var/www/html # Mount kode proyek Anda
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf # Konfigurasi Nginx
+    depends_on:
+      - app
+    networks:
+      - laravel-network
+
+  # Service untuk Database (MySQL)
+  db:
+    image: mysql:8.0 # Anda bisa menggunakan postgres:14-alpine jika ingin PostgreSQL
+    container_name: laravel_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: laravel_db # Nama database
+      MYSQL_ROOT_PASSWORD: root_password # Password root (ganti dengan yang lebih kuat untuk produksi)
+      MYSQL_PASSWORD: db_password # Password user
+      MYSQL_USER: db_user # Nama user
+    volumes:
+      - dbdata:/var/lib/mysql # Persisten data database
+    networks:
+      - laravel-network
+
+  # Service untuk Redis (opsional, jika Anda menggunakannya untuk cache/queue)
+  redis:
+    image: redis:alpine
+    container_name: laravel_redis
+    restart: unless-stopped
+    networks:
+      - laravel-network
+
+# Jaringan yang akan digunakan oleh semua service
+networks:
+  laravel-network:
+    driver: bridge
+
+# Volume untuk persistensi data database
+volumes:
+  dbdata:
+    driver: local
